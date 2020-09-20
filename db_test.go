@@ -34,8 +34,8 @@ func TestInsert(t *testing.T) {
 		{"test1", args{&Pair{2, []byte{'f', 'o', 'o'}}}, true, false}, // do not want error
 		{"test2", args{&Pair{1, []byte{'b', 'a', 'r'}}}, true, false}, // do not want error
 		{"test3", args{&Pair{5, []byte{'b', 'a', 'z'}}}, true, false}, // do not want error
-		//{"test4", args{&Pair{3, []byte{'z', 'o', 'e'}}}, true, false}, // do not want error
-		//{"test5", args{&Pair{4, []byte{'d', 'o', 't'}}}, true, false}, // do not want error
+		{"test4", args{&Pair{3, []byte{'z', 'o', 'e'}}}, true, false}, // do not want error
+		{"test5", args{&Pair{4, []byte{'d', 'o', 't'}}}, true, false}, // do not want error
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
