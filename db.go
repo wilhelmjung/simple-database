@@ -29,9 +29,9 @@ const NumCell = 4
 // Node :
 // (child, {key, val}),
 type Node struct {
-	Parent *Node
-	Cells  []Cell // Num + 1 cells, // slice
-	Used   int
+	Parent *Node  `json:"parent,omitempty"`
+	Cells  []Cell `json:"cells,omitempty"` // Num + 1 cells, // slice
+	Used   int    `json:"used,omitempty"`
 }
 
 // NewNode :
@@ -47,98 +47,97 @@ func isFull(node *Node) bool {
 
 // Cursor : search or insert position
 type Cursor struct {
-	Node  *Node
-	Index int
+	Node  *Node `json:"node,omitempty"`
+	Index int   `json:"index,omitempty"`
 }
 
 // Search :
 func Search(key int) *Pair {
-	kv, _ := binSearch(key, root)
-	return kv
+	found, cursor := searchTree(key, root)
+	if found {
+		return getKeyVal(cursor)
+	}
+	return nil
 }
 
 // InvalidCursor :
 var InvalidCursor = Cursor{nil, -1}
 
+func getKeyVal(cursor Cursor) *Pair {
+	return &cursor.Node.Cells[cursor.Index].KeyVal
+}
+
+func setKeyVal(cursor Cursor, keyVal *Pair) {
+	cursor.Node.Cells[cursor.Index].KeyVal = *keyVal
+}
+
+func getChildNode(cursor Cursor) *Node {
+	return cursor.Node.Cells[cursor.Index].Child
+}
+
 // binary search within node;
-func binSearch(key int, node *Node) (*Pair, Cursor) {
+func searchTree(key int, node *Node) (bool, Cursor) {
 	if node == nil {
-		return nil, InvalidCursor
+		panic("try to search a NIL node!")
 	}
-	var beg = 0
-	var end = node.Used - 1
-	var mid = -1
-	// empty node
-	if end == -1 {
-		return nil, Cursor{node, 0}
+	found, cursor := binarySearchNode(node, key)
+	if found { // found in current node;
+		return true, cursor
 	}
-	for {
-		if key < node.Cells[beg].KeyVal.Key { // search left
-			return binSearch(key, node.Cells[beg].Child)
-		}
-		if key > node.Cells[end].KeyVal.Key { // search right
-			return binSearch(key, node.Cells[end].Child)
-		}
-		mid = (beg + end) / 2
-		// search middle, not found in this node;
-		if mid == beg {
-			child := node.Cells[mid].Child
-			if child == nil {
-				// not found, but return cursor
-				return nil, Cursor{node, beg}
-			}
-			return binSearch(key, child)
-		}
-		midKey := node.Cells[mid].KeyVal.Key
-		if key == midKey {
-			return &node.Cells[mid].KeyVal, Cursor{node, mid}
-		} else if key > midKey {
-			beg = mid
-		} else if key < midKey {
-			end = mid
-		}
+	child := getChildNode(cursor)
+	if child != nil {
+		return searchTree(key, child)
 	}
-	// not possible!
-	//return nil
+	return false, cursor // return nearest insert position
 }
 
 // if found, return cell and index;
 // if not found, return nil and the position for insertion.
-func searchInNode(node *Node, key int) (*Cell, int) {
+func binarySearchNode(node *Node, key int) (bool, Cursor) {
+	if node == nil {
+		panic("try to search a NIL node.")
+	}
+	if node.Used == 0 {
+		return false, Cursor{node, 0}
+	}
 	l, r := 0, node.Used-1
 	if key < node.Cells[l].KeyVal.Key {
-		return nil, 0 // Cells[l] move afterward
+		return false, Cursor{node, 0} // not found: Cells[l] move afterward
 	}
 	if key > node.Cells[r].KeyVal.Key {
-		return nil, node.Used // just append
+		return false, Cursor{node, node.Used} // not found: just append
 	}
 	// binary search
-	for l < r {
+	for l <= r {
 		m := (l + r) / 2
 		mKey := node.Cells[m].KeyVal.Key
 		if mKey == key {
-			return &node.Cells[m], m // found
+			return true, Cursor{node, m} // found
 		} else if mKey < key {
 			l = m
 		} else if mKey > key {
 			r = m
 		}
 		if l-r == -1 { // in between l and r, so no need to search
-			return nil, r
+			return false, Cursor{node, r} // not found:
 		}
 	}
-	// used == 1, l == r == 0, and key == cells[0].keyval.key
-	return &node.Cells[l], 0
+	// imposible: l > r, node.Used == 0
+	panic("try to search a empty node!")
 }
 
 // Insert : a kv pair
 func Insert(keyVal *Pair) (bool, error) {
 	// find insert position
-	kv, cursor := binSearch(keyVal.Key, root)
-	if kv != nil { // found dup key
-		log.Printf("found dup key: @%v with kv %v\n", cursor, kv)
-		kv.Val = keyVal.Val // overwrite dup key
+	found, cursor := searchTree(keyVal.Key, root)
+	if found { // found dup key
+		kv := getKeyVal(cursor)
+		log.Printf("found dup key: %v -> %v\n", *keyVal, *kv)
+		setKeyVal(cursor, keyVal) // overwrite dup key
 		return true, nil
+	}
+	if cursor.Node == nil {
+		panic("found invalid cursor!")
 	}
 	// insert this kv pair first to make it really full;
 	ok, err := insertIntoNode(cursor, keyVal)
@@ -185,13 +184,12 @@ func splitNode(node *Node) {
 	// insert kv into its parent node
 	pNode := node.Parent
 	// to find the exact cell that points to current node
-	cell, idx := searchInNode(pNode, keyVal.Key)
-	if cell == nil {
+	found, cursor := binarySearchNode(pNode, keyVal.Key)
+	if !found && (cursor.Index == 0 && cursor.Index == cursor.Node.Used) {
 		log.Printf("panic: node: %v, key: %v", pNode, keyVal.Key)
 		panic("key is not within range of node.")
 	}
-	cur := Cursor{pNode, idx}
-	ok, err := insertIntoNode(cur, &keyVal)
+	ok, err := insertIntoNode(cursor, &keyVal)
 	if !ok {
 		log.Printf("insertIntoNode failed, err: %v", err)
 		panic("insertIntoNode failed.")
@@ -202,8 +200,12 @@ func splitNode(node *Node) {
 // insert kv into node
 func insertIntoNode(cursor Cursor, kv *Pair) (bool, error) {
 	node := cursor.Node
-	if isFull(cursor.Node) {
-		log.Printf("try to insert into a full node: %v, kv: %v", cursor.Node, kv)
+	if node == nil {
+		err := "try to insert into nil node!"
+		panic(err)
+	}
+	if isFull(node) {
+		log.Printf("try to insert into a full node: %v, kv: %v", node, kv)
 		panic("insert into a full node.")
 	}
 	idx := cursor.Index
@@ -214,9 +216,11 @@ func insertIntoNode(cursor Cursor, kv *Pair) (bool, error) {
 	}
 	// set cell
 	node.Cells[idx].KeyVal = *kv
+	// set used
+	node.Used++
 	// check full
-	if isFull(cursor.Node) {
-		splitNode(cursor.Node)
+	if isFull(node) {
+		splitNode(node)
 	}
 	return true, nil
 }
