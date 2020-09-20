@@ -1,7 +1,7 @@
-package main
+package db
 
 import (
-	"fmt"
+	"log"
 	"unsafe"
 )
 
@@ -136,14 +136,14 @@ func Insert(keyVal *Pair) (bool, error) {
 	// find insert position
 	kv, cursor := binSearch(keyVal.Key, root)
 	if kv != nil { // found dup key
-		fmt.Printf("found dup key: @%v with kv %v\n", cursor, kv)
+		log.Printf("found dup key: @%v with kv %v\n", cursor, kv)
 		kv.Val = keyVal.Val // overwrite dup key
 		return true, nil
 	}
 	// insert this kv pair first to make it really full;
 	ok, err := insertIntoNode(cursor, keyVal)
 	if !ok {
-		fmt.Printf("failed insertIntoNode - cursor:%v, kv:%v", cursor, keyVal)
+		log.Printf("failed insertIntoNode - cursor:%v, kv:%v", cursor, keyVal)
 		return false, err
 	}
 	return true, nil
@@ -152,7 +152,7 @@ func Insert(keyVal *Pair) (bool, error) {
 // splitNode on middle kv pair;
 func splitNode(node *Node) {
 	if node.Used < 3 {
-		fmt.Printf("panic: node - %v", node)
+		log.Printf("panic: node - %v", node)
 		panic("node to be split should have at least 3 kv pairs.")
 	}
 	// split on middle kv pair
@@ -187,13 +187,13 @@ func splitNode(node *Node) {
 	// to find the exact cell that points to current node
 	cell, idx := searchInNode(pNode, keyVal.Key)
 	if cell == nil {
-		fmt.Printf("panic: node: %v, key: %v", pNode, keyVal.Key)
+		log.Printf("panic: node: %v, key: %v", pNode, keyVal.Key)
 		panic("key is not within range of node.")
 	}
 	cur := Cursor{pNode, idx}
 	ok, err := insertIntoNode(cur, &keyVal)
 	if !ok {
-		fmt.Printf("insertIntoNode failed, err: %v", err)
+		log.Printf("insertIntoNode failed, err: %v", err)
 		panic("insertIntoNode failed.")
 	}
 	return
@@ -203,7 +203,7 @@ func splitNode(node *Node) {
 func insertIntoNode(cursor Cursor, kv *Pair) (bool, error) {
 	node := cursor.Node
 	if isFull(cursor.Node) {
-		fmt.Printf("try to insert into a full node: %v, kv: %v", cursor.Node, kv)
+		log.Printf("try to insert into a full node: %v, kv: %v", cursor.Node, kv)
 		panic("insert into a full node.")
 	}
 	idx := cursor.Index
@@ -218,7 +218,7 @@ func insertIntoNode(cursor Cursor, kv *Pair) (bool, error) {
 	if isFull(cursor.Node) {
 		splitNode(cursor.Node)
 	}
-	return false, nil
+	return true, nil
 }
 
 // Init :
@@ -238,21 +238,21 @@ func TestDB() {
 	var err error
 	var p *Pair
 	ok, err = Insert(kv2)
-	fmt.Printf("ok:%v, err:%v", ok, err)
+	log.Printf("ok:%v, err:%v", ok, err)
 	ok, err = Insert(kv1)
-	fmt.Printf("ok:%v, err:%v", ok, err)
+	log.Printf("ok:%v, err:%v", ok, err)
 	ok, err = Insert(kv3)
-	fmt.Printf("ok:%v, err:%v", ok, err)
+	log.Printf("ok:%v, err:%v", ok, err)
 
 	p = Search(30)
-	fmt.Printf("found p: %v", p)
+	log.Printf("found p: %v", p)
 	p = Search(10)
-	fmt.Printf("found p: %v", p)
+	log.Printf("found p: %v", p)
 	p = Search(20)
-	fmt.Printf("found p: %v", p)
+	log.Printf("found p: %v", p)
 }
 
 func hello() {
 	it := NewNode()
-	fmt.Printf("hello,world. %v, \n sz: %v\n", it, unsafe.Sizeof(it))
+	log.Printf("hello,world. %v, \n sz: %v\n", it, unsafe.Sizeof(it))
 }
