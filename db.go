@@ -1,8 +1,8 @@
-package db
+package main
 
 import (
+	"fmt"
 	"log"
-	"unsafe"
 )
 
 // btree root node
@@ -100,6 +100,7 @@ func binarySearchNode(node *Node, key int) (bool, Cursor) {
 	if node.Used == 0 {
 		return false, Cursor{node, 0}
 	}
+	fmt.Printf("search %v in node: %v\n", key, *node)
 	l, r := 0, node.Used-1
 	if key < node.Cells[l].KeyVal.Key {
 		return false, Cursor{node, 0} // not found: Cells[l] move afterward
@@ -114,16 +115,13 @@ func binarySearchNode(node *Node, key int) (bool, Cursor) {
 		if mKey == key {
 			return true, Cursor{node, m} // found
 		} else if mKey < key {
-			l = m
+			l = m + 1
 		} else if mKey > key {
-			r = m
-		}
-		if l-r == -1 { // in between l and r, so no need to search
-			return false, Cursor{node, r} // not found:
+			r = m - 1
 		}
 	}
-	// imposible: l > r, node.Used == 0
-	panic("try to search a empty node!")
+	// not found, in between r and l, insert at l;
+	return false, Cursor{node, l}
 }
 
 // Insert : a kv pair
@@ -249,14 +247,9 @@ func TestDB() {
 	log.Printf("ok:%v, err:%v", ok, err)
 
 	p = Search(30)
-	log.Printf("found p: %v", p)
+	log.Printf("found p: %v, root: %v", p, root)
 	p = Search(10)
-	log.Printf("found p: %v", p)
+	log.Printf("found p: %v, root: %v", p, root)
 	p = Search(20)
-	log.Printf("found p: %v", p)
-}
-
-func hello() {
-	it := NewNode()
-	log.Printf("hello,world. %v, \n sz: %v\n", it, unsafe.Sizeof(it))
+	log.Printf("found p: %v, root: %v", p, root)
 }

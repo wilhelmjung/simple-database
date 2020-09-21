@@ -1,6 +1,7 @@
-package db
+package main
 
 import (
+	"fmt"
 	"log"
 	"testing"
 )
@@ -100,4 +101,42 @@ func Test_insertIntoNode(t *testing.T) {
 		// dump root node
 		log.Printf("node: %+v", *tt.args.cursor.Node)
 	}
+}
+func TestInsertAndSearch1(t *testing.T) {
+	Init()
+
+	for i := 1; i <= 10; i++ {
+		str := fmt.Sprintf("foo_%v", i)
+		Insert(&Pair{i, []byte(str)})
+	}
+	p := Search(4)
+	//log.Printf("found p: %v, root: %v", string(p.Val), root)
+	log.Printf("found p: %v, root: %v", p, root)
+}
+
+func TestInsertAndSearch0(t *testing.T) {
+	Init()
+	kv1 := &Pair{10, []byte("foo")}
+	kv2 := &Pair{20, []byte("bar")}
+	kv3 := &Pair{30, []byte("baz")}
+
+	var (
+		ok  bool
+		err error
+		p   *Pair
+	)
+	ok, err = Insert(kv2)
+	log.Printf("ok:%v, err:%v", ok, err)
+	ok, err = Insert(kv1)
+	log.Printf("ok:%v, err:%v", ok, err)
+	ok, err = Insert(kv3)
+	log.Printf("ok:%v, err:%v", ok, err)
+
+	p = Search(30)
+	log.Printf("found p: %v, root: %v", string(p.Val), root)
+	p = Search(10)
+	log.Printf("found p: %v, root: %v", string(p.Val), root)
+	p = Search(20)
+	log.Printf("found p: %v, root: %v", string(p.Val), root)
+
 }
