@@ -24,7 +24,15 @@ type Cell struct {
 // 341 * 3 * 8 = 8184, ~ 8196
 //const NumCell = 340
 //const NumCell = 16
-const NumCell = 4
+var NumCell = 1024
+
+// SetNumCell :
+func SetNumCell(num int) {
+	if num > NumCell {
+		NumCell = num
+	}
+	fmt.Printf("NumCell set to %d\n", NumCell)
+}
 
 // Node :
 // (child, {key, val}),
@@ -100,7 +108,7 @@ func binarySearchNode(node *Node, key int) (bool, Cursor) {
 	if node.Used == 0 {
 		return false, Cursor{node, 0}
 	}
-	fmt.Printf("search %v in node: %v\n", key, *node)
+	//fmt.Printf("search %v in node: %v\n", key, *node)
 	l, r := 0, node.Used-1
 	if key < node.Cells[l].KeyVal.Key {
 		return false, Cursor{node, 0} // not found: Cells[l] move afterward
@@ -228,28 +236,4 @@ func Init() {
 	if root == nil {
 		root = NewNode()
 	}
-}
-
-// TestDB :
-func TestDB() {
-	Init()
-	kv1 := &Pair{10, []byte{'f', 'o', 'o'}}
-	kv2 := &Pair{20, []byte{'b', 'a', 'r'}}
-	kv3 := &Pair{30, []byte{'b', 'a', 'r'}}
-	var ok bool
-	var err error
-	var p *Pair
-	ok, err = Insert(kv2)
-	log.Printf("ok:%v, err:%v", ok, err)
-	ok, err = Insert(kv1)
-	log.Printf("ok:%v, err:%v", ok, err)
-	ok, err = Insert(kv3)
-	log.Printf("ok:%v, err:%v", ok, err)
-
-	p = Search(30)
-	log.Printf("found p: %v, root: %v", p, root)
-	p = Search(10)
-	log.Printf("found p: %v, root: %v", p, root)
-	p = Search(20)
-	log.Printf("found p: %v, root: %v", p, root)
 }

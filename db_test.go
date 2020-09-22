@@ -1,9 +1,13 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"log"
+	"strconv"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func init() {
@@ -138,5 +142,86 @@ func TestInsertAndSearch0(t *testing.T) {
 	log.Printf("found p: %v, root: %v", string(p.Val), root)
 	p = Search(20)
 	log.Printf("found p: %v, root: %v", string(p.Val), root)
+
+}
+
+type MyDB interface {
+	init()
+	insert(keyVal *Pair) (bool, error)
+	search(key int) *Pair
+}
+
+var db MyDB
+
+// compare performance with hash map;
+var hash map[int][]byte
+
+var isHash = true
+
+func dbInit() {
+	if isHash {
+		fmt.Println("using hashmap!")
+		hash = make(map[int][]byte)
+	} else {
+		fmt.Println("using simple-db!")
+		Init()
+	}
+}
+
+func dbInsert(kv *Pair) (bool, error) {
+	if isHash {
+		hash[kv.Key] = kv.Val
+		return true, nil
+	} else {
+		return Insert(kv)
+	}
+}
+
+func dbSearch(key int) *Pair {
+	if isHash {
+		val := hash[key]
+		return &Pair{key, val}
+	} else {
+		return Search(key)
+	}
+}
+
+// TestDB :
+func TestDB(t *testing.T) {
+	a := assert.New(t)
+	flag.Parse()
+	args := flag.Args()
+	num, err := strconv.Atoi(args[0])
+	if err != nil {
+		num = 1000000
+	}
+	useHash, err := strconv.Atoi(args[1])
+	if useHash == 1 {
+		isHash = true
+	} else {
+		isHash = false
+	}
+	fmt.Printf("num: %d\n", num)
+
+	dbInit()
+
+	genVal := func(i int) []byte {
+		s := fmt.Sprintf("#%d", i)
+		return []byte(s)
+	}
+
+	for i := 1; i <= num; i++ {
+		kv := &Pair{i, genVal(i)}
+		ok, err := dbInsert(kv)
+		a.True(ok)
+		a.Nil(err)
+	}
+
+	for i := num; i <= 1; i-- {
+		p := dbSearch(i)
+		a.NotNil(p)
+		a.Equal(p.Key, i)
+		a.Equal(p.Val, genVal(i))
+	}
 
 }
