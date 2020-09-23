@@ -5,6 +5,13 @@ import (
 	"log"
 )
 
+// DBInterface :
+type DBInterface interface {
+	Init()
+	Insert(keyVal *Pair) (bool, error)
+	Search(key int) *Pair
+}
+
 // btree root node
 var root *Node
 
@@ -132,11 +139,13 @@ func binarySearchNode(node *Node, key int) (bool, Cursor) {
 	return false, Cursor{node, l}
 }
 
+var noDup = false
+
 // Insert : a kv pair
 func Insert(keyVal *Pair) (bool, error) {
 	// find insert position
 	found, cursor := searchTree(keyVal.Key, root)
-	if found { // found dup key
+	if found && noDup { // found dup key
 		kv := getKeyVal(cursor)
 		log.Printf("found dup key: %v -> %v\n", *keyVal, *kv)
 		setKeyVal(cursor, keyVal) // overwrite dup key
@@ -233,7 +242,5 @@ func insertIntoNode(cursor Cursor, kv *Pair) (bool, error) {
 
 // Init :
 func Init() {
-	if root == nil {
-		root = NewNode()
-	}
+	root = NewNode()
 }

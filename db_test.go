@@ -145,65 +145,99 @@ func TestInsertAndSearch0(t *testing.T) {
 
 }
 
-type MyDB interface {
-	init()
-	insert(keyVal *Pair) (bool, error)
-	search(key int) *Pair
+// MyDB impl
+type MyDB struct{}
+
+func (*MyDB) Init() {
+	fmt.Println("using simple-db!")
+	Init()
 }
 
-var db MyDB
+func (*MyDB) Insert(kv *Pair) (bool, error) {
+	return Insert(kv)
+}
+
+func (*MyDB) Search(key int) *Pair {
+	return Search(key)
+}
 
 // compare performance with hash map;
-var hash map[int][]byte
+// HashMap impl
+type HashMap map[int][]byte
 
-var isHash = true
+func (hashMap HashMap) Init() {
+	fmt.Println("using hashmap!")
+}
 
-func dbInit() {
-	if isHash {
-		fmt.Println("using hashmap!")
-		hash = make(map[int][]byte)
-	} else {
-		fmt.Println("using simple-db!")
-		Init()
+func (hashMap HashMap) Insert(kv *Pair) (bool, error) {
+	hashMap[kv.Key] = kv.Val
+	return true, nil
+}
+
+func (hashMap HashMap) Search(key int) *Pair {
+	val := hashMap[key]
+	return &Pair{key, val}
+}
+
+func genVal(i int) []byte {
+	s := fmt.Sprintf("#%d", i)
+	return []byte(s)
+}
+
+func BenchmarkInsert1000000(b *testing.B) {
+	var db = new(MyDB)
+	db.Init()
+	for i := 1; i <= b.N; i++ {
+		kv := &Pair{i, genVal(i)}
+		ok, err := db.Insert(kv)
+		if !ok || err != nil {
+			b.Error("Insert failed!")
+		}
 	}
 }
 
-func dbInsert(kv *Pair) (bool, error) {
-	if isHash {
-		hash[kv.Key] = kv.Val
-		return true, nil
-	} else {
-		return Insert(kv)
+func BenchmarkSearch1000000(b *testing.B) {
+	var db = new(MyDB)
+	db.Init()
+	for i := 1; i <= b.N; i++ {
+		kv := &Pair{i, genVal(i)}
+		ok, err := db.Insert(kv)
+		if !ok || err != nil {
+			b.Error("Insert failed!")
+		}
 	}
-}
-
-func dbSearch(key int) *Pair {
-	if isHash {
-		val := hash[key]
-		return &Pair{key, val}
-	} else {
-		return Search(key)
+	b.ResetTimer()
+	for i := b.N; i <= 1; i-- {
+		p := db.Search(i)
+		if p == nil {
+			b.Error("Search failed!")
+		}
 	}
 }
 
 // TestDB :
 func TestDB(t *testing.T) {
 	a := assert.New(t)
+
 	flag.Parse()
+	num := 1000 * 1000
 	args := flag.Args()
-	num, err := strconv.Atoi(args[0])
-	if err != nil {
-		num = 1000000
+	var db DBInterface
+	if len(args) >= 1 {
+		num, _ = strconv.Atoi(args[0])
 	}
-	useHash, err := strconv.Atoi(args[1])
-	if useHash == 1 {
-		isHash = true
-	} else {
-		isHash = false
+	if len(args) >= 2 {
+		use, _ := strconv.Atoi(args[1])
+		if use == 1 {
+			db = make(HashMap)
+		} else {
+			db = new(MyDB)
+		}
 	}
+
 	fmt.Printf("num: %d\n", num)
 
-	dbInit()
+	db.Init()
 
 	genVal := func(i int) []byte {
 		s := fmt.Sprintf("#%d", i)
@@ -212,13 +246,13 @@ func TestDB(t *testing.T) {
 
 	for i := 1; i <= num; i++ {
 		kv := &Pair{i, genVal(i)}
-		ok, err := dbInsert(kv)
+		ok, err := db.Insert(kv)
 		a.True(ok)
 		a.Nil(err)
 	}
 
 	for i := num; i <= 1; i-- {
-		p := dbSearch(i)
+		p := db.Search(i)
 		a.NotNil(p)
 		a.Equal(p.Key, i)
 		a.Equal(p.Val, genVal(i))
