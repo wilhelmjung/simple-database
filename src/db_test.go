@@ -1,4 +1,5 @@
-package main
+// test with: go test db
+package db
 
 import (
 	"flag"
@@ -10,13 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func init() {
-	Init()
-	log.Printf("test setup.")
-}
-
 func beforeTestInsert() {
-	Init()
 }
 
 func afterTestInsert() {
@@ -42,11 +37,12 @@ func TestInsert(t *testing.T) {
 		{"test4", args{&Pair{3, []byte{'z', 'o', 'e'}}}, true, false}, // do not want error
 		{"test5", args{&Pair{4, []byte{'d', 'o', 't'}}}, true, false}, // do not want error
 	}
+	d := NewDB()
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := Insert(tt.args.keyVal)
+			got, err := d.Insert(tt.args.keyVal)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("Insert() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("Insert() error = %v, wantEr %v", err, tt.wantErr)
 				return
 			}
 			if got != tt.want {
@@ -55,22 +51,22 @@ func TestInsert(t *testing.T) {
 		})
 	}
 	// dump root node
-	log.Printf("root: %+v", root)
+	t.Logf("root: %+v", d.root)
 }
 
 func SetUpInsertIntoNode() {
-	Init()
 }
 
 func TearDownInsertIntoNode() {
-	//TODO
-	//deleteDB
+	//TODO //deleteDB
 }
 
 func Test_insertIntoNode(t *testing.T) {
 	// setup and teardown
 	SetUpInsertIntoNode()
 	defer TearDownInsertIntoNode()
+
+	db := NewDB()
 
 	type args struct {
 		cursor Cursor
@@ -85,7 +81,7 @@ func Test_insertIntoNode(t *testing.T) {
 		{
 			"test_insert_into_empty_node",
 			args{
-				Cursor{NewNode(), 0},
+				Cursor{db.NewNode(), 0},
 				&Pair{1, []byte{'a', 'b', 'c'}},
 			},
 			true, false,
@@ -93,7 +89,7 @@ func Test_insertIntoNode(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := insertIntoNode(tt.args.cursor, tt.args.kv)
+			got, err := db.insertIntoNode(tt.args.cursor, tt.args.kv)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("insertIntoNode() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -107,19 +103,18 @@ func Test_insertIntoNode(t *testing.T) {
 	}
 }
 func TestInsertAndSearch1(t *testing.T) {
-	Init()
-
+	db := NewDB()
 	for i := 1; i <= 10; i++ {
 		str := fmt.Sprintf("foo_%v", i)
-		Insert(&Pair{i, []byte(str)})
+		db.Insert(&Pair{i, []byte(str)})
 	}
-	p := Search(4)
+	p := db.Search(4)
 	//log.Printf("found p: %v, root: %v", string(p.Val), root)
-	log.Printf("found p: %v, root: %v", p, root)
+	log.Printf("found p: %v, root: %v", p, db.root)
 }
 
 func TestInsertAndSearch0(t *testing.T) {
-	Init()
+	db := NewDB()
 	kv1 := &Pair{10, []byte("foo")}
 	kv2 := &Pair{20, []byte("bar")}
 	kv3 := &Pair{30, []byte("baz")}
@@ -129,53 +124,46 @@ func TestInsertAndSearch0(t *testing.T) {
 		err error
 		p   *Pair
 	)
-	ok, err = Insert(kv2)
+	ok, err = db.Insert(kv2)
 	log.Printf("ok:%v, err:%v", ok, err)
-	ok, err = Insert(kv1)
+	ok, err = db.Insert(kv1)
 	log.Printf("ok:%v, err:%v", ok, err)
-	ok, err = Insert(kv3)
+	ok, err = db.Insert(kv3)
 	log.Printf("ok:%v, err:%v", ok, err)
 
-	p = Search(30)
-	log.Printf("found p: %v, root: %v", string(p.Val), root)
-	p = Search(10)
-	log.Printf("found p: %v, root: %v", string(p.Val), root)
-	p = Search(20)
-	log.Printf("found p: %v, root: %v", string(p.Val), root)
+	p = db.Search(30)
+	log.Printf("found p: %v, root: %v", string(p.Val), db.root)
+	p = db.Search(10)
+	log.Printf("found p: %v, root: %v", string(p.Val), db.root)
+	p = db.Search(20)
+	log.Printf("found p: %v, root: %v", string(p.Val), db.root)
 
-}
-
-// MyDB impl
-type MyDB struct{}
-
-func (*MyDB) Init() {
-	fmt.Println("using simple-db!")
-	Init()
-}
-
-func (*MyDB) Insert(kv *Pair) (bool, error) {
-	return Insert(kv)
-}
-
-func (*MyDB) Search(key int) *Pair {
-	return Search(key)
 }
 
 // compare performance with hash map;
 // HashMap impl
-type HashMap map[int][]byte
-
-func (hashMap HashMap) Init() {
-	fmt.Println("using hashmap!")
+type Hash struct {
+	Map map[int][]byte
 }
 
-func (hashMap HashMap) Insert(kv *Pair) (bool, error) {
-	hashMap[kv.Key] = kv.Val
+func NewHash() *Hash {
+	var h Hash
+	h.Map = make(map[int][]byte)
+	return &h
+}
+
+func (hash *Hash) Init() {
+	fmt.Println("using hashmap!")
+	hash.Map[42] = []byte("101")
+}
+
+func (hash *Hash) Insert(kv *Pair) (bool, error) {
+	hash.Map[kv.Key] = kv.Val
 	return true, nil
 }
 
-func (hashMap HashMap) Search(key int) *Pair {
-	val := hashMap[key]
+func (hash *Hash) Search(key int) *Pair {
+	val := hash.Map[key]
 	return &Pair{key, val}
 }
 
@@ -184,9 +172,8 @@ func genVal(i int) []byte {
 	return []byte(s)
 }
 
-func BenchmarkInsert1000000(b *testing.B) {
-	var db = new(MyDB)
-	db.Init()
+func BenchmarkInsert1M(b *testing.B) {
+	db := NewDB()
 	for i := 1; i <= b.N; i++ {
 		kv := &Pair{i, genVal(i)}
 		ok, err := db.Insert(kv)
@@ -196,9 +183,8 @@ func BenchmarkInsert1000000(b *testing.B) {
 	}
 }
 
-func BenchmarkSearch1000000(b *testing.B) {
-	var db = new(MyDB)
-	db.Init()
+func BenchmarkSearch1M(b *testing.B) {
+	db := NewDB()
 	for i := 1; i <= b.N; i++ {
 		kv := &Pair{i, genVal(i)}
 		ok, err := db.Insert(kv)
@@ -215,23 +201,28 @@ func BenchmarkSearch1000000(b *testing.B) {
 	}
 }
 
+// test with: go test db -run ^TestDB$ --args 1000 2
 // TestDB :
 func TestDB(t *testing.T) {
 	a := assert.New(t)
 
 	flag.Parse()
-	num := 1000 * 1000
+	//num := 1000 * 1000
+	num := 1000
 	args := flag.Args()
-	var db DBInterface
+	var db Interface
 	if len(args) >= 1 {
 		num, _ = strconv.Atoi(args[0])
 	}
+	db = new(DB)
 	if len(args) >= 2 {
 		use, _ := strconv.Atoi(args[1])
 		if use == 1 {
-			db = make(HashMap)
+			db = NewHash()
+			t.Logf("use hash\n")
 		} else {
-			db = new(MyDB)
+			db = new(DB)
+			t.Logf("use DB\n")
 		}
 	}
 
