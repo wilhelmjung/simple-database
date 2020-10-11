@@ -4,6 +4,14 @@ import (
 	"log"
 )
 
+// config logger...
+func init() {
+	prefix := "[DB] "
+	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds | log.Llongfile)
+	log.SetPrefix(prefix)
+	log.Print("module db initialized.")
+}
+
 // Interface : xx
 type Interface interface {
 	Init()
@@ -33,7 +41,7 @@ func NewDB() *DB {
 func (d *DB) Init() {
 	d.NumCell = 1024 // set num cell first!
 	d.root = d.NewNode()
-	log.Printf("+d.root: %v\n", d.root)
+	//log.Printf("+d.root: %v\n", d.root)
 }
 
 // Pair : kv
@@ -73,14 +81,14 @@ type Cursor struct {
 // NewNode :
 func (d *DB) NewNode() *Node {
 	if d.NumCell == 0 {
-		panic("Num of cell can not be 0.")
+		log.Panic("Num of cell can not be 0.")
 	}
 	// make one more cell for last right pointer
 	cells := make([]Cell, d.NumCell+1, d.NumCell+1) // pre-allocated?
 	node := &Node{Parent: nil, Cells: cells, Used: 0}
 	node.Cells = cells
-	log.Printf("*num cell: %v\n", d.NumCell)
-	log.Printf("*root node: %v\n", node)
+	//log.Printf("*num cell: %v\n", d.NumCell)
+	//log.Printf("*root node: %v\n", node)
 	return node
 }
 
@@ -112,7 +120,7 @@ func getChildNode(cursor Cursor) *Node {
 
 func recursiveSearch(key int, node *Node) (bool, Cursor) {
 	if node == nil {
-		panic("try to search a NIL node!")
+		log.Panic("try to search a NIL node!")
 	}
 	found, cursor := binarySearch(node, key)
 	if found { // found in current node;
@@ -129,7 +137,7 @@ func recursiveSearch(key int, node *Node) (bool, Cursor) {
 // if not found, return nil and the position for insertion.
 func binarySearch(node *Node, key int) (bool, Cursor) {
 	if node == nil {
-		panic("try to search a NIL node.")
+		log.Panic("try to search a NIL node.")
 	}
 	if node.Used == 0 {
 		return false, Cursor{node, 0}
@@ -171,7 +179,7 @@ func (d *DB) Insert(keyVal *Pair) (bool, error) {
 		return true, nil
 	}
 	if cursor.Node == nil {
-		panic("found invalid cursor!")
+		log.Panic("found invalid cursor!")
 	}
 	// insert this kv pair first to make it really full;
 	ok, err := d.insertIntoNode(cursor, keyVal)
@@ -185,8 +193,7 @@ func (d *DB) Insert(keyVal *Pair) (bool, error) {
 // split on middle kv pair;
 func (d *DB) split(node *Node) {
 	if node.Used < 3 {
-		log.Printf("panic: node - %v", node)
-		panic("node to be split should have at least 3 kv pairs.")
+		log.Panicf("node - %v to be split should have at least 3 kv pairs.\n", node)
 	}
 	// split on middle kv pair
 	mid := node.Used / 2
@@ -220,13 +227,11 @@ func (d *DB) split(node *Node) {
 	// to find the exact cell that points to current node
 	found, cursor := binarySearch(pNode, keyVal.Key)
 	if !found && (cursor.Index == 0 && cursor.Index == cursor.Node.Used) {
-		log.Printf("panic: node: %v, key: %v", pNode, keyVal.Key)
-		panic("key is not within range of node.")
+		log.Panicf("key is not within range of node - %v, key - %v.\n", pNode, keyVal.Key)
 	}
 	ok, err := d.insertIntoNode(cursor, &keyVal)
 	if !ok {
-		log.Printf("insertIntoNode failed, err: %v", err)
-		panic("insertIntoNode failed.")
+		log.Panicf("insertIntoNode failed, err: %v\n", err)
 	}
 	return
 }
@@ -235,17 +240,16 @@ func (d *DB) split(node *Node) {
 func (d *DB) insertIntoNode(cursor Cursor, kv *Pair) (bool, error) {
 	node := cursor.Node
 	if node == nil {
-		err := "try to insert into nil node!"
-		panic(err)
+		log.Panic("try to insert into nil node!")
 	}
 	if d.isFull(node) {
 		log.Printf("try to insert into a full node: %v, kv: %v", node, kv)
-		panic("insert into a full node.")
+		log.Panic("insert into a full node.")
 	}
 	idx := cursor.Index
 	// TODO	 check node.Cells[idx].Child == nil
 	// move cells
-	log.Printf("+ node: %v\n", node)
+	//log.Printf("+ node: %v\n", node)
 	for i := node.Used + 1; i > idx; i-- {
 		node.Cells[i] = node.Cells[i-1]
 	}

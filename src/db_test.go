@@ -201,7 +201,9 @@ func BenchmarkSearch1M(b *testing.B) {
 	}
 }
 
-// test with: go test db -run ^TestDB$ --args 1000 2
+// command line:
+//   using hashmap:   go test db -run ^TestDB -v -args 100000000 1
+//   using simple DB: go test db -run ^TestDB -v -args 100000000 2
 // TestDB :
 func TestDB(t *testing.T) {
 	a := assert.New(t)
@@ -226,7 +228,7 @@ func TestDB(t *testing.T) {
 		}
 	}
 
-	fmt.Printf("num: %d\n", num)
+	t.Logf("num: %d\n", num)
 
 	db.Init()
 
